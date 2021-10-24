@@ -48,6 +48,8 @@ class Experiment:
         self.samples = 16
         torch.backends.cudnn.benchmark = True
 
+        print ("I am here")
+
     def run(self, logging_frequency=4) -> (list, list):
         """
         This function runs the experiment
@@ -82,7 +84,7 @@ class Experiment:
             self.loss = self.loss.cuda()
 
         if self.explainable:
-            trained_data = Variable(next(iter(loader))[0])
+            trained_data = next(iter(loader))
             if self.cuda:
                 trained_data = trained_data.cuda()
         else:
@@ -100,6 +102,8 @@ class Experiment:
             if self.explainable and (epoch - 1) == explanationSwitch:
                 if self.type["dataset"] == "cifar":
                     self.generator.out.register_backward_hook(explanation_hook_cifar)
+                elif self.type["dataset"] == "ecg":
+                    self.generator.main.register_backward_hook(explanation_hook)
                 else:
                     self.generator.out.register_backward_hook(explanation_hook)
                 local_explainable = True
@@ -107,7 +111,7 @@ class Experiment:
             for n_batch, data in enumerate(loader):
 
                 real_batch = data['cardiac_cycle'].float()
-                print ("size of real batch ", real_batch.shape)
+                print ("batch number", n_batch)
                 labels = data['label']
                 labels_class = torch.max(labels, 1)[1]
 
@@ -164,7 +168,8 @@ class Experiment:
             test_images = vectors_to_images_cifar(test_images).cpu().data
             calculate_metrics_cifar(path=f'{logger.data_subdir}/generator.pt', numberOfSamples=10000)
         elif self.type["dataset"] == "ecg":
-            print ("no evaluation yet")
+            print ("no change to test images")
+            print ("classs of test images ", type(test_images))
         else:
             test_images = vectors_to_images(test_images).cpu().data
             calculate_metrics(path=f'{logger.data_subdir}/generator.pt', numberOfSamples=10000,
@@ -243,8 +248,3 @@ class Experiment:
 
         # Return error and predictions for real and fake inputs
         return (error_real + error_fake) / 2, prediction_real, prediction_fake
-
-    def train_lstm(self, real_data: Variable):
-        #need all types of heartbeats to train lstm
-
-        

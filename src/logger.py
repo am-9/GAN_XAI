@@ -63,8 +63,19 @@ class Logger:
 
     def log_images(self, images, epoch, n_batch, num_batches, i_format='NCHW', normalize=True):
         """ input images are expected in format (NCHW) """
+
+
+        images = images.detach().numpy()
         if type(images) == np.ndarray:
             images = torch.from_numpy(images)
+
+        print (type(images))
+
+        # expected shape [16, 216]
+        print (images.shape)
+        print (images[0])
+        #test plots
+        self.save_ecg(images, epoch, n_batch)
 
         if i_format == 'NHWC':
             images = images.transpose(1, 3)
@@ -74,7 +85,7 @@ class Logger:
 
         # Make horizontal grid from image tensor
         horizontal_grid = vutils.make_grid(
-            images, normalize=normalize, scale_each=True)
+            images, normalize=normalize, scale_each=True )
 
         # Add horizontal images to tensorboard
         self.writer.add_image(img_name, horizontal_grid, step)
@@ -82,12 +93,20 @@ class Logger:
         # Save plots
         self.save_torch_images(horizontal_grid, epoch, n_batch)
 
+
     def save_torch_images(self, horizontal_grid, epoch, n_batch):
         # Plot and save horizontal
-        fig = plt.figure(figsize=(16, 16))
+        fig = plt.figure(figsize=(32,32))
         plt.imshow(np.moveaxis(horizontal_grid.numpy(), 0, -1))
         plt.axis('off')
         fig.savefig('{}/epoch_{}_batch_{}.png'.format(self.data_subdir, epoch, n_batch))
+        plt.close()
+
+    def save_ecg(self, images, epoch, n_batch):
+        fig = plt.figure(figsize=(32,32))
+        plt.plot(images[0])
+        plt.axis('off')
+        fig.savefig('{}/epoch_{}_batch_{}_test.png'.format(self.data_subdir, epoch, n_batch))
         plt.close()
 
     @staticmethod

@@ -22,7 +22,7 @@ class ExperimentEnums(Enum):
 
     ECGSaliency = {
         "explainable": False,
-        "explanationType": "saliency",
+        "explanationType": None,
         "generator": EcgGenerator,
         "discriminator": EcgDiscriminator,
         "dataset": "ecg",
@@ -33,7 +33,7 @@ class ExperimentEnums(Enum):
         "glr": 0.0002,
         "dlr": 0.0002,
         "loss": nn.BCELoss(),
-        "epochs": 50
+        "epochs": 1
     }
 
     # FMNIST35Normal = {
