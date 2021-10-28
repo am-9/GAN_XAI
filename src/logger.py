@@ -71,11 +71,11 @@ class Logger:
 
         print (type(images))
 
-        # expected shape [16, 216]
         print (images.shape)
-        print (images[0])
         #test plots
         self.save_ecg(images, epoch, n_batch)
+
+        print (images.shape)
 
         if i_format == 'NHWC':
             images = images.transpose(1, 3)
@@ -93,7 +93,6 @@ class Logger:
         # Save plots
         self.save_torch_images(horizontal_grid, epoch, n_batch)
 
-
     def save_torch_images(self, horizontal_grid, epoch, n_batch):
         # Plot and save horizontal
         fig = plt.figure(figsize=(32,32))
@@ -103,10 +102,34 @@ class Logger:
         plt.close()
 
     def save_ecg(self, images, epoch, n_batch):
-        fig = plt.figure(figsize=(32,32))
-        plt.plot(images[0])
+
+        print ("SAVING ECG IMAGE")
+        fig, ((ax1, ax2, ax3, ax4), (ax5, ax6, ax7, ax8), (ax9, ax10, ax11, ax12),
+              (ax13, ax14, ax15, ax16)) = plt.subplots(4, 4)
+
+        ax1.plot(images[0])
+        ax2.plot(images[1])
+        ax3.plot(images[2])
+        ax4.plot(images[3])
+        ax5.plot(images[4])
+        ax6.plot(images[5])
+        ax7.plot(images[6])
+        ax8.plot(images[7])
+        ax9.plot(images[8])
+        ax10.plot(images[9])
+        ax11.plot(images[10])
+        ax12.plot(images[11])
+        ax13.plot(images[12])
+        ax14.plot(images[13])
+        ax15.plot(images[14])
+        ax16.plot(images[15])
+
+        for ax in fig.get_axes():
+            ax.label_outer()
+
         plt.axis('off')
         fig.savefig('{}/epoch_{}_batch_{}_test.png'.format(self.data_subdir, epoch, n_batch))
+        plt.show()
         plt.close()
 
     @staticmethod

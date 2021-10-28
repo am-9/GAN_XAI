@@ -19,7 +19,6 @@ import numpy as np
 from get_data import get_loader
 from models.generators import GeneratorNet
 
-
 def main():
     """
     The main function that parses arguments

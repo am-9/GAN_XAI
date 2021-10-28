@@ -24,7 +24,7 @@ global values
 global discriminatorLime
 
 
-def get_explanation(generated_data, discriminator, prediction, XAItype="shap", cuda=True, trained_data=None,
+def get_explanation(generated_data, discriminator, prediction, XAItype, cuda=True, trained_data=None,
                     data_type="mnist") -> None:
     """
     This function calculates the explanation for given generated images using the desired xAI systems and the
@@ -45,7 +45,6 @@ def get_explanation(generated_data, discriminator, prediction, XAItype="shap", c
     :return:
     :rtype:
     """
-
     # initialize temp values to all 1s
     temp = values_target(size=generated_data.size(), value=1.0, cuda=cuda)
 
@@ -56,10 +55,15 @@ def get_explanation(generated_data, discriminator, prediction, XAItype="shap", c
     data = generated_data[mask, :]
 
     if len(indices) > 1:
+
         if XAItype == "saliency":
             for i in range(len(indices)):
                 explainer = Saliency(discriminator)
                 temp[indices[i], :] = explainer.attribute(data[i, :].detach().unsqueeze(0))
+
+            temp = temp.unsqueeze(1)
+            temp = temp.unsqueeze(1)
+            print ("done getting saliency xAI ", len(temp), " ", len(temp[1,]))
 
         elif XAItype == "shap":
             for i in range(len(indices)):
@@ -88,6 +92,7 @@ def get_explanation(generated_data, discriminator, prediction, XAItype="shap", c
 
     if cuda:
         temp = temp.cuda()
+    print ("DONE SETTING VALUES")
     set_values(normalize_vector(temp))
 
 
@@ -99,11 +104,23 @@ def explanation_hook(module, grad_input, grad_output):
     :param grad_output: the gradients from the output layer
     :return:
     """
+
+    print ("AT EXPLANATION HOOK")
     # get stored mask
-    temp = images_to_vectors(get_values())
+    temp = get_values()
+
+    print ("TEMP SHAPE")
+    print (temp.shape)
+
+
+    print ("grad input shape ", grad_input[0].shape)
+    print ("grad output shape ", grad_output[0].shape)
 
     # multiply with mask to generate values in range [1x, 1.2x] where x is the original calculated gradient
     new_grad = grad_input[0] + 0.2 * (grad_input[0] * temp)
+
+    print ("DONE COMPUTING NEW GRAD")
+    print ("new grad input shape ", new_grad.shape)
 
     return (new_grad, )
 
@@ -135,9 +152,11 @@ def normalize_vector(vector: torch.tensor) -> torch.tensor:
 
 def get_values() -> np.array:
     """ get global values """
+    print ("GETTING VALUES")
     global values
+    print (type(values))
+    print(values.shape)
     return values
-
 
 def set_values(x: np.array) -> None:
     """ set global values """

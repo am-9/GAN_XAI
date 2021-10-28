@@ -23,6 +23,8 @@ from torch import nn
 import torch
 import time
 import ecg_dataset_pytorch
+from scipy.spatial.distance import euclidean
+from fastdtw import fastdtw
 
 class Experiment:
     """ The class that contains the experiment details """
@@ -64,6 +66,7 @@ class Experiment:
         start_time = time.time()
 
         explanationSwitch = (self.epochs + 1) / 2 if self.epochs % 2 == 1 else self.epochs / 2
+        #explanationSwitch=0
 
         logger = Logger(self.name, self.type["dataset"])
 
@@ -103,6 +106,7 @@ class Experiment:
                 if self.type["dataset"] == "cifar":
                     self.generator.out.register_backward_hook(explanation_hook_cifar)
                 elif self.type["dataset"] == "ecg":
+                    print ("using xAI")
                     self.generator.main.register_backward_hook(explanation_hook)
                 else:
                     self.generator.out.register_backward_hook(explanation_hook)
@@ -159,6 +163,14 @@ class Experiment:
                         d_error, g_error, d_pred_real, d_pred_fake
                     )
 
+                    #distance, path = fastdtw(real_batch, fake_data, dist=euclidean)
+
+              #for each epoch calculate MMD
+              #sigma = [pairwisedistances(sine_data_test[:].type(torch.DoubleTensor),generated_sample.type(torch.DoubleTensor).squeeze())]
+              #mmd = MMDStatistic(len(sine_data_test[:]),generated_sample.size(0))
+              #mmd_eval = mmd(sine_data_test[:].type(torch.DoubleTensor),generated_sample.type(torch.DoubleTensor).squeeze(),sigma, ret_matrix=False)
+              #mmd_list.append(mmd_eval.item())
+
         logger.save_models(generator=self.generator)
         logger.save_errors(g_loss=G_losses, d_loss=D_losses)
         timeTaken = time.time() - start_time
@@ -194,6 +206,7 @@ class Experiment:
         prediction = self.discriminator(fake_data).view(-1)
 
         if local_explainable:
+            print("local explanation true")
             get_explanation(generated_data=fake_data, discriminator=self.discriminator, prediction=prediction,
                             XAItype=self.explanationType, cuda=self.cuda, trained_data=trained_data,
                             data_type=self.type["dataset"])
