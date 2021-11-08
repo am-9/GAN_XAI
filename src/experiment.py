@@ -16,6 +16,7 @@ from utils.vector_utils import noise, values_target, vectors_to_images, vectors_
     weights_init
 from evaluation.evaluate_generator import calculate_metrics
 from evaluation.evaluate_generator_cifar10 import calculate_metrics_cifar
+from evaluation.MMD import pairwisedistances, MMDStatistic
 from logger import Logger
 from utils.explanation_utils import explanation_hook, get_explanation, explanation_hook_cifar
 from torch.autograd import Variable
@@ -25,6 +26,7 @@ import time
 import ecg_dataset_pytorch
 from scipy.spatial.distance import euclidean
 from fastdtw import fastdtw
+import numpy as np
 
 class Experiment:
     """ The class that contains the experiment details """
@@ -96,6 +98,8 @@ class Experiment:
         # track losses
         G_losses = []
         D_losses = []
+        MMD = []
+        DTW = []
 
         local_explainable = False
 
@@ -165,14 +169,21 @@ class Experiment:
 
                     #distance, path = fastdtw(real_batch, fake_data, dist=euclidean)
 
-              #for each epoch calculate MMD
-              #sigma = [pairwisedistances(sine_data_test[:].type(torch.DoubleTensor),generated_sample.type(torch.DoubleTensor).squeeze())]
-              #mmd = MMDStatistic(len(sine_data_test[:]),generated_sample.size(0))
-              #mmd_eval = mmd(sine_data_test[:].type(torch.DoubleTensor),generated_sample.type(torch.DoubleTensor).squeeze(),sigma, ret_matrix=False)
-              #mmd_list.append(mmd_eval.item())
+                #for each epoch calculate MMD and DTW
+                if n_batch == (len(loader)-2):
+                    sigma = pairwisedistances(real_batch,fake_data)
+                    mmd = MMDStatistic(real_batch.size(0),fake_data.size(0))
+                    mmd_eval = mmd(real_batch,fake_data, sigma, ret_matrix=False)
+                    print ("mmd eval ", mmd_eval.item())
+                    MMD.append(mmd_eval.item())
+                    distance, path = fastdtw(real_batch.detach().numpy(), fake_data.detach().numpy(), dist=euclidean)
+                    DTW.append(distance)
+                    print ("DTW distance ", distance)
+            #mmd_list.append(mmd_eval.item())
 
         logger.save_models(generator=self.generator)
         logger.save_errors(g_loss=G_losses, d_loss=D_losses)
+        logger.save_dtw_mmd(DTW, MMD, epoch, num_batches)
         timeTaken = time.time() - start_time
         test_images = self.generator(test_noise)
 

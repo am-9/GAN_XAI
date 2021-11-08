@@ -129,7 +129,22 @@ class Logger:
 
         plt.axis('off')
         fig.savefig('{}/epoch_{}_batch_{}_test.png'.format(self.data_subdir, epoch, n_batch))
-        plt.show()
+        #plt.show()
+        plt.close()
+
+    def save_dtw_mmd(self, dtw, mmd, epoch, n_batch):
+        fig, (ax1, ax2) = plt.subplots(2, 1)
+        print ("DTW ", dtw)
+        print ("MMD ", mmd)
+
+        x_range = range(1, len(dtw)+1)
+        ax1.scatter(x_range, dtw)
+        ax2.scatter(x_range, mmd)
+        ax1.set_title("epoch vs dtw")
+        ax2.set_title("epoch vs mmd")
+        #ax1.xticks(fontsize=30)
+        #ax1.yticks(fontsize=30)
+        fig.savefig('{}/epoch_{}_batch_{}_dtw_mmd.png'.format(self.data_subdir, epoch, n_batch))
         plt.close()
 
     @staticmethod

@@ -20,7 +20,8 @@ from experiment import Experiment
 
 class ExperimentEnums(Enum):
 
-    ECGSaliency = {
+
+    ECGNormal = {
         "explainable": False,
         "explanationType": None,
         "generator": EcgGenerator,
@@ -33,8 +34,24 @@ class ExperimentEnums(Enum):
         "glr": 0.0002,
         "dlr": 0.0002,
         "loss": nn.BCELoss(),
-        "epochs": 20
+        "epochs": 2
     }
+
+    # ECGSaliency = {
+    #     "explainable": True,
+    #     "explanationType": "saliency",
+    #     "generator": EcgGenerator,
+    #     "discriminator": EcgDiscriminator,
+    #     "dataset": "ecg",
+    #     "batchSize": 128,
+    #     "percentage": 1,
+    #     "g_optim": optim.Adam,
+    #     "d_optim": optim.Adam,
+    #     "glr": 0.0002,
+    #     "dlr": 0.0002,
+    #     "loss": nn.BCELoss(),
+    #     "epochs": 20
+    # }
 
     # FMNIST35Normal = {
     #     "explainable": False,

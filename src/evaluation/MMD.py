@@ -1,3 +1,6 @@
+from torch import sum, sqrt, abs, cat, exp, trace
+import numpy as np
+
 """#MMD Evaluation Metric Definition
 Using MMD to determine the similarity between distributions
 PDIST code comes from torch-two-sample utils code:
@@ -19,22 +22,23 @@ def pdist(sample_1, sample_2, norm=2, eps=1e-5):
     torch.Tensor or Variable
         Matrix of shape (n_1, n_2). The [i, j]-th entry is equal to
         ``|| sample_1[i, :] - sample_2[j, :] ||_p``."""
+
     n_1, n_2 = sample_1.size(0), sample_2.size(0)
     norm = float(norm)
 
     if norm == 2.:
-        norms_1 = torch.sum(sample_1**2, dim=1, keepdim=True)
-        norms_2 = torch.sum(sample_2**2, dim=1, keepdim=True)
+        norms_1 = sum(sample_1**2, dim=1, keepdim=True)
+        norms_2 = sum(sample_2**2, dim=1, keepdim=True)
         norms = (norms_1.expand(n_1, n_2) +
                  norms_2.transpose(0, 1).expand(n_1, n_2))
         distances_squared = norms - 2 * sample_1.mm(sample_2.t())
-        return torch.sqrt(eps + torch.abs(distances_squared))
+        return sqrt(eps + abs(distances_squared))
     else:
         dim = sample_1.size(1)
         expanded_1 = sample_1.unsqueeze(1).expand(n_1, n_2, dim)
         expanded_2 = sample_2.unsqueeze(0).expand(n_1, n_2, dim)
-        differences = torch.abs(expanded_1 - expanded_2) ** norm
-        inner = torch.sum(differences, dim=2, keepdim=False)
+        differences = abs(expanded_1 - expanded_2) ** norm
+        inner = sum(differences, dim=2, keepdim=False)
         return (eps + inner) ** (1. / norm)
 
 def permutation_test_mat(matrix,
@@ -118,12 +122,13 @@ class MMDStatistic:
             The test statistic.
         :class:`torch:torch.autograd.Variable`
             Returned only if ``ret_matrix`` was set to true."""
-        sample_12 = torch.cat((sample_1, sample_2), 0)
+
+        sample_12 = cat((sample_1, sample_2), 0)
         distances = pdist(sample_12, sample_12, norm=2)
 
         kernels = None
         for alpha in alphas:
-            kernels_a = torch.exp(- alpha * distances ** 2)
+            kernels_a = exp(- alpha * distances ** 2)
             if kernels is None:
                 kernels = kernels_a
             else:
@@ -134,8 +139,8 @@ class MMDStatistic:
         k_12 = kernels[:self.n_1, self.n_1:]
 
         mmd = (2 * self.a01 * k_12.sum() +
-               self.a00 * (k_1.sum() - torch.trace(k_1)) +
-               self.a11 * (k_2.sum() - torch.trace(k_2)))
+               self.a00 * (k_1.sum() - trace(k_1)) +
+               self.a11 * (k_2.sum() - trace(k_2)))
         if ret_matrix:
             return mmd, kernels
         else:
@@ -169,4 +174,4 @@ calculate sigma is to use the median pairwise distances between the joint data.
 
 def pairwisedistances(X,Y,norm=2):
     dist = pdist(X,Y,norm)
-    return np.median(dist.numpy())
+    return np.median(dist.detach().numpy(), axis=1)

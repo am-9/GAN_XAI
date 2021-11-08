@@ -51,6 +51,7 @@ def get_explanation(generated_data, discriminator, prediction, XAItype, cuda=Tru
     # mask values with low prediction
     mask = (prediction < 0.5).view(-1)
     indices = (mask.nonzero(as_tuple=False)).detach().cpu().numpy().flatten().tolist()
+    print ("LENGTH INDICES ", indices)
 
     data = generated_data[mask, :]
 
@@ -61,9 +62,7 @@ def get_explanation(generated_data, discriminator, prediction, XAItype, cuda=Tru
                 explainer = Saliency(discriminator)
                 temp[indices[i], :] = explainer.attribute(data[i, :].detach().unsqueeze(0))
 
-            temp = temp.unsqueeze(1)
-            temp = temp.unsqueeze(1)
-            print ("done getting saliency xAI ", len(temp), " ", len(temp[1,]))
+            #print ("done getting saliency xAI ", len(temp), " ", len(temp[1,]))
 
         elif XAItype == "shap":
             for i in range(len(indices)):
@@ -92,9 +91,8 @@ def get_explanation(generated_data, discriminator, prediction, XAItype, cuda=Tru
 
     if cuda:
         temp = temp.cuda()
-    print ("DONE SETTING VALUES")
+    #print ("DONE SETTING VALUES")
     set_values(normalize_vector(temp))
-
 
 def explanation_hook(module, grad_input, grad_output):
     """
@@ -108,19 +106,20 @@ def explanation_hook(module, grad_input, grad_output):
     print ("AT EXPLANATION HOOK")
     # get stored mask
     temp = get_values()
+    temp = temp.unsqueeze(1)
+    temp = temp.unsqueeze(1)
 
-    print ("TEMP SHAPE")
-    print (temp.shape)
+    #print ("TEMP SHAPE")
+    #print (temp.shape)
 
-
-    print ("grad input shape ", grad_input[0].shape)
-    print ("grad output shape ", grad_output[0].shape)
+    #print ("grad input shape ", grad_input[0].shape)
+    #print ("grad output shape ", grad_output[0].shape)
 
     # multiply with mask to generate values in range [1x, 1.2x] where x is the original calculated gradient
     new_grad = grad_input[0] + 0.2 * (grad_input[0] * temp)
 
-    print ("DONE COMPUTING NEW GRAD")
-    print ("new grad input shape ", new_grad.shape)
+    #print ("DONE COMPUTING NEW GRAD")
+    #print ("new grad input shape ", new_grad.shape)
 
     return (new_grad, )
 
@@ -152,10 +151,7 @@ def normalize_vector(vector: torch.tensor) -> torch.tensor:
 
 def get_values() -> np.array:
     """ get global values """
-    print ("GETTING VALUES")
     global values
-    print (type(values))
-    print(values.shape)
     return values
 
 def set_values(x: np.array) -> None:
