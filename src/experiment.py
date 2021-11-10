@@ -52,8 +52,6 @@ class Experiment:
         self.samples = 16
         torch.backends.cudnn.benchmark = True
 
-        print ("I am here")
-
     def run(self, logging_frequency=4) -> (list, list):
         """
         This function runs the experiment
@@ -133,6 +131,7 @@ class Experiment:
                 else:
                     fake_data = self.generator(noise(N, self.cuda)).detach()
 
+
                 if self.cuda:
                     real_batch = real_batch.cuda()
                     fake_data = fake_data.cuda()
@@ -142,10 +141,12 @@ class Experiment:
 
                 # 2. Train Generator
                 # Generate fake data
+
                 if self.type["dataset"] == "cifar":
                     fake_data = self.generator(noise_cifar(N, self.cuda))
                 else:
                     fake_data = self.generator(noise(N, self.cuda))
+
 
                 if self.cuda:
                     fake_data = fake_data.cuda()
@@ -208,6 +209,7 @@ class Experiment:
         :param fake_data: tensor data created by generator
         :return: error of generator on this training step
         """
+
         N = fake_data.size(0)
 
         # Reset gradients

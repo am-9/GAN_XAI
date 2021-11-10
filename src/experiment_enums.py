@@ -13,7 +13,7 @@ Contact:
 """
 
 from enum import Enum
-from models.generators import GeneratorNet, GeneratorNetCifar10, EcgGenerator
+from models.generators import GeneratorNet, GeneratorNetCifar10, EcgGenerator, ECGLSTMGenerator
 from models.discriminators import DiscriminatorNet, DiscriminatorNetCifar10, EcgDiscriminator
 from torch import nn, optim
 from experiment import Experiment
@@ -21,10 +21,10 @@ from experiment import Experiment
 class ExperimentEnums(Enum):
 
 
-    ECGNormal = {
+    ECGLSTMNormal = {
         "explainable": False,
         "explanationType": None,
-        "generator": EcgGenerator,
+        "generator": ECGLSTMGenerator,
         "discriminator": EcgDiscriminator,
         "dataset": "ecg",
         "batchSize": 128,
@@ -34,8 +34,24 @@ class ExperimentEnums(Enum):
         "glr": 0.0002,
         "dlr": 0.0002,
         "loss": nn.BCELoss(),
-        "epochs": 2
+        "epochs": 10
     }
+
+    # ECGNormal = {
+    #     "explainable": False,
+    #     "explanationType": None,
+    #     "generator": EcgGenerator,
+    #     "discriminator": EcgDiscriminator,
+    #     "dataset": "ecg",
+    #     "batchSize": 128,
+    #     "percentage": 1,
+    #     "g_optim": optim.Adam,
+    #     "d_optim": optim.Adam,
+    #     "glr": 0.0002,
+    #     "dlr": 0.0002,
+    #     "loss": nn.BCELoss(),
+    #     "epochs": 2
+    # }
 
     # ECGSaliency = {
     #     "explainable": True,

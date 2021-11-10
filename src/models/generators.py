@@ -51,42 +51,28 @@ class EcgGenerator(nn.Module, ABC):
         return x
 
 class ECGLSTMGenerator(nn.Module):
-    def __init__(self,seq_length,batch_size,n_features = 1, hidden_dim = 50,
-               num_layers = 2, tanh_output = False):
-        super(Generator,self).__init__()
-        self.n_features = n_features
+    def __init__(self, input_dim=100, hidden_dim=100, output_dim=216, num_layers=2):
+        super(ECGLSTMGenerator, self).__init__()
+        self.input_dim = input_dim
         self.hidden_dim = hidden_dim
+        self.output_dim = output_dim
         self.num_layers = num_layers
-        self.seq_length = seq_length
-        self.batch_size = batch_size
-        self.tanh_output = tanh_output
+        self.layer1 = nn.LSTM(self.input_dim, self.hidden_dim, self.num_layers, bidirectional=False, dropout=0.5)
+        self.layer2 = nn.Linear(self.hidden_dim, self.output_dim)
 
-        if IMV_LSTM == True:
-            self.F_alpha_n = nn.Parameter(torch.randn(input_dim, n_units, 1)*init_std)
-            self.F_alpha_n_b = nn.Parameter(torch.randn(input_dim, 1)*init_std)
-            self.F_beta = nn.Linear(2*n_units, 1)
-
-
-        self.layer1 = nn.LSTM(input_size = self.n_features, hidden_size = self.hidden_dim,
-                                  num_layers = self.num_layers,batch_first = True#,dropout = 0.2,
-                                 )
-        if self.tanh_output == True:
-            self.out = nn.Sequential(nn.Linear(self.hidden_dim,1),nn.Tanh()) # to make sure the output is between 0 and 1 - removed ,nn.Sigmoid()
-        else:
-            self.out = nn.Linear(self.hidden_dim,1)
-
-    def init_hidden(self):
-        weight = next(self.parameters()).data
-        hidden = (weight.new(self.num_layers, self.batch_size, self.hidden_dim).zero_().to(device), weight.new(self.num_layers, self.batch_size, self.hidden_dim).zero_().to(device))
-        return hidden
-
-    def forward(self,x,hidden):
-
-        x,hidden = self.layer1(x.view(self.batch_size,self.seq_length,1),hidden)
-
-        x = self.out(x)
-
-        return x #,hidden
+    def forward(self, x):
+        # s, b, dim
+        x = x.unsqueeze(0)
+        #print ("shape of x ", x.shape)
+        x, hn = self.layer1(x)
+        #print ("shape of x after layer 1 ", x.shape)
+        s, b, h = x.size()
+        x = x.view(s*b, h)
+        x = self.layer2(x)
+        #print ("shape of x after layer 2 ", x.shape)
+        # s, b, outputsize
+        #x = x.view(s, b, -1)
+        return x
 
 class GeneratorNet(nn.Module, ABC):
     """
