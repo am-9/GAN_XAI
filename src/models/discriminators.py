@@ -56,7 +56,7 @@ class ECGLSTMDiscriminator(nn.Module):
         self.hidden_dim = hidden_dim
         self.output_dim = output_dim
         self.num_layers = num_layers
-        self.layer1 = nn.LSTM(self.input_dim, self.hidden_dim, self.num_layers, bidirectional=False, dropout=0.5)
+        self.layer1 = nn.LSTM(self.input_dim, self.hidden_dim, self.num_layers, bidirectional=True, dropout=0.5)
         self.layer2 = nn.Sequential(
             nn.Linear(self.hidden_dim*2, self.output_dim),
             nn.Sigmoid()
