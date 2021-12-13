@@ -129,7 +129,11 @@ def scale_signal(signal, min_val=-0.01563, max_val=0.042557):
     :param max:
     :return:
     """
+    #print("at scale signal x ", type(signal))
+    #print("x shape ", signal.shape)
     # Scale signal to lie between -0.4 and 1.2 mV :
+    signal = signal.detach().numpy()
+    #print("x shape ", signal.shape)
     scaled = np.interp(signal, (signal.min(), signal.max()), (min_val, max_val))
 
     # zmin = min(signal)
@@ -137,7 +141,7 @@ def scale_signal(signal, min_val=-0.01563, max_val=0.042557):
     # zrange = zmax - zmin
     # # for (i=1; i <= Nts; i++)
     # scaled = [(z - zmin) * max_val / zrange + min_val for z in signal]
-    return scaled
+    return torch.from_numpy(signal)
 
 
 # class EcgHearBeatsDatasetTest(Dataset):

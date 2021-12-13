@@ -18,7 +18,7 @@ from evaluation.evaluate_generator import calculate_metrics
 from evaluation.evaluate_generator_cifar10 import calculate_metrics_cifar
 from evaluation.MMD import pairwisedistances, MMDStatistic
 from logger import Logger
-from utils.explanation_utils import explanation_hook, get_explanation, explanation_hook_cifar
+from utils.explanation_utils import explanation_hook, get_explanation, explanation_hook_cifar, explanation_hook_lstm
 from torch.autograd import Variable
 from torch import nn
 import torch
@@ -27,6 +27,8 @@ import ecg_dataset_pytorch
 from scipy.spatial.distance import euclidean
 from fastdtw import fastdtw
 import numpy as np
+import similaritymeasures
+import sys
 
 class Experiment:
     """ The class that contains the experiment details """
@@ -46,7 +48,7 @@ class Experiment:
         self.d_optim = self.type["d_optim"](self.discriminator.parameters(), lr=self.type["dlr"], betas=(0.5, 0.99))
         self.loss = self.type["loss"]
         self.epochs = self.type["epochs"]
-        self.cuda = True if torch.cuda.is_available() else False
+        self.cuda = False
         self.real_label = 0.9
         self.fake_label = 0.1
         self.samples = 16
@@ -98,6 +100,7 @@ class Experiment:
         D_losses = []
         MMD = []
         DTW = []
+        FD = []
 
         local_explainable = False
 
@@ -107,17 +110,18 @@ class Experiment:
             if self.explainable and (epoch - 1) == explanationSwitch:
                 if self.type["dataset"] == "cifar":
                     self.generator.out.register_backward_hook(explanation_hook_cifar)
-                elif self.type["dataset"] == "ecg":
-                    print ("using xAI")
-                    self.generator.main.register_backward_hook(explanation_hook)
                 else:
-                    self.generator.out.register_backward_hook(explanation_hook)
+                    if "LSTM" in self.name:
+                        self.generator.out.register_backward_hook(explanation_hook_lstm)
+                    else:
+                        self.generator.out.register_backward_hook(explanation_hook)
                 local_explainable = True
 
             for n_batch, data in enumerate(loader):
 
+                sys.stdout.flush()
                 real_batch = data['cardiac_cycle'].float()
-                print ("batch number", n_batch)
+                print ("batch number ", n_batch)
                 labels = data['label']
                 labels_class = torch.max(labels, 1)[1]
 
@@ -171,20 +175,31 @@ class Experiment:
                     #distance, path = fastdtw(real_batch, fake_data, dist=euclidean)
 
                 #for each epoch calculate MMD and DTW
-                if n_batch == (len(loader)-2):
-                    sigma = pairwisedistances(real_batch,fake_data)
-                    mmd = MMDStatistic(real_batch.size(0),fake_data.size(0))
-                    mmd_eval = mmd(real_batch,fake_data, sigma, ret_matrix=False)
-                    print ("mmd eval ", mmd_eval.item())
-                    MMD.append(mmd_eval.item())
-                    distance, path = fastdtw(real_batch.detach().numpy(), fake_data.detach().numpy(), dist=euclidean)
-                    DTW.append(distance)
-                    print ("DTW distance ", distance)
+                distance = 0
+                frechet = 0
+                if n_batch == len(loader)-1:
+                    #fake_data = (torch.sigmoid(fake_data)*2)-0.5
+                    for i in range(N):
+                        with torch.no_grad():
+                            real = real_batch[i, :].numpy()
+                            fake = fake_data[i, :].numpy()
+                            if "CNN" in self.name:
+                                fake = np.interp(fake, (min(fake), max(fake)), (-0.4, 1.5))
+                            distance += fastdtw(real, fake, dist=euclidean, radius = 216)[0]
+                            frechet += similaritymeasures.frechet_dist(real, fake)
+                            if i == 120:
+                                print ("real array ", real)
+                                print ("fake array ", fake)
+
+                    DTW.append(distance/N)
+                    FD.append(frechet/N)
+                    print ("dtw ", distance/N)
+                    print ("fd ", frechet/N)
             #mmd_list.append(mmd_eval.item())
 
         logger.save_models(generator=self.generator)
         logger.save_errors(g_loss=G_losses, d_loss=D_losses)
-        logger.save_dtw_mmd(DTW, MMD, epoch, num_batches)
+        logger.save_dtw_fd(DTW, FD, epoch, num_batches)
         timeTaken = time.time() - start_time
         test_images = self.generator(test_noise)
 
@@ -192,8 +207,14 @@ class Experiment:
             test_images = vectors_to_images_cifar(test_images).cpu().data
             calculate_metrics_cifar(path=f'{logger.data_subdir}/generator.pt', numberOfSamples=10000)
         elif self.type["dataset"] == "ecg":
-            print ("no change to test images")
-            print ("classs of test images ", type(test_images))
+            if "CNN" in self.name:
+                for i in range(len(test_images)):
+                    with torch.no_grad():
+                        fake = test_images[i, :].numpy()
+                        fake = np.interp(fake, (min(fake), max(fake)), (-0.4, 1.5))
+                        test_images[i,:] = torch.tensor(fake)
+            else:
+                test_images = test_images
         else:
             test_images = vectors_to_images(test_images).cpu().data
             calculate_metrics(path=f'{logger.data_subdir}/generator.pt', numberOfSamples=10000,
@@ -219,7 +240,7 @@ class Experiment:
         prediction = self.discriminator(fake_data).view(-1)
 
         if local_explainable:
-            print("local explanation true")
+            #print("local explanation true")
             get_explanation(generated_data=fake_data, discriminator=self.discriminator, prediction=prediction,
                             XAItype=self.explanationType, cuda=self.cuda, trained_data=trained_data,
                             data_type=self.type["dataset"])
@@ -254,6 +275,7 @@ class Experiment:
         self.d_optim.zero_grad()
 
         # 1.1 Train on Real Data
+        #print ("at discriminator training")
         prediction_real = self.discriminator(real_data).view(-1)
 
         # Calculate error

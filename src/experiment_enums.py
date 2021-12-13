@@ -13,35 +13,98 @@ Contact:
 """
 
 from enum import Enum
-from models.generators import GeneratorNet, GeneratorNetCifar10, EcgGenerator, ECGLSTMGenerator
-from models.discriminators import DiscriminatorNet, DiscriminatorNetCifar10, EcgDiscriminator
+from models.generators import GeneratorNet, GeneratorNetCifar10, EcgCNNGenerator, ECGLSTMGenerator
+from models.discriminators import DiscriminatorNet, DiscriminatorNetCifar10, EcgCNNDiscriminator, ECGLSTMDiscriminator, IMVFullLSTM
 from torch import nn, optim
 from experiment import Experiment
 
 class ExperimentEnums(Enum):
 
-
-    ECGLSTMNormal = {
-        "explainable": False,
-        "explanationType": None,
-        "generator": ECGLSTMGenerator,
-        "discriminator": EcgDiscriminator,
-        "dataset": "ecg",
-        "batchSize": 128,
-        "percentage": 1,
-        "g_optim": optim.Adam,
-        "d_optim": optim.Adam,
-        "glr": 0.0002,
-        "dlr": 0.0002,
-        "loss": nn.BCELoss(),
-        "epochs": 10
-    }
-
-    # ECGNormal = {
+    # ECGLSTMNormal = {
     #     "explainable": False,
     #     "explanationType": None,
-    #     "generator": EcgGenerator,
-    #     "discriminator": EcgDiscriminator,
+    #     "generator": ECGLSTMGenerator,
+    #     "discriminator": ECGLSTMDiscriminator,
+    #     "dataset": "ecg",
+    #     "batchSize": 128,
+    #     "percentage": 1,
+    #     "g_optim": optim.Adam,
+    #     "d_optim": optim.Adam,
+    #     "glr": 0.0002,
+    #     "dlr": 0.0002,
+    #     "loss": nn.BCELoss(),
+    #     "epochs": 50
+    # }
+    #
+    # ECGLSTMIg = {
+    #     "explainable": True,
+    #     "explanationType": "ig",
+    #     "generator": ECGLSTMGenerator,
+    #     "discriminator": ECGLSTMDiscriminator,
+    #     "dataset": "ecg",
+    #     "batchSize": 128,
+    #     "percentage": 1,
+    #     "g_optim": optim.Adam,
+    #     "d_optim": optim.Adam,
+    #     "glr": 0.0002,
+    #     "dlr": 0.0002,
+    #     "loss": nn.BCELoss(),
+    #     "epochs": 50
+    # }
+
+    # ECGLSTMIMV = {
+    #     "explainable": False,
+    #     "explanationType": None,
+    #     "generator": ECGLSTMGenerator,
+    #     "discriminator": IMVFullLSTM,
+    #     "dataset": "ecg",
+    #     "batchSize": 128,
+    #     "percentage": 1,
+    #     "g_optim": optim.Adam,
+    #     "d_optim": optim.Adam,
+    #     "glr": 0.0002,
+    #     "dlr": 0.0002,
+    #     "loss": nn.BCELoss(),
+    #     "epochs": 50
+    # }
+
+    # ECGCNNNormal = {
+    #     "explainable": False,
+    #     "explanationType": None,
+    #     "generator": EcgCNNGenerator,
+    #     "discriminator": EcgCNNDiscriminator,
+    #     "dataset": "ecg",
+    #     "batchSize": 128,
+    #     "percentage": 1,
+    #     "g_optim": optim.Adam,
+    #     "d_optim": optim.Adam,
+    #     "glr": 0.0002,
+    #     "dlr": 0.0002,
+    #     "loss": nn.BCELoss(),
+    #     "epochs": 25
+    # }
+
+    # ECGCNNSaliency = {
+    #     "explainable": True,
+    #     "explanationType": "saliency",
+    #     "generator": EcgCNNGenerator,
+    #     "discriminator": EcgCNNDiscriminator,
+    #     "dataset": "ecg",
+    #     "batchSize": 128,
+    #     "percentage": 1,
+    #     "g_optim": optim.Adam,
+    #     "d_optim": optim.Adam,
+    #     "glr": 0.0002,
+    #     "dlr": 0.0002,
+    #     "loss": nn.BCELoss(),
+    #     "epochs": 50
+    # }
+
+    # ECGCNNShap = {
+    #     "explainable": True,
+    #     "explanationType": "lime",
+    #     "generator": EcgCNNGenerator,
+    #     "discriminator": EcgCNNDiscriminator,
     #     "dataset": "ecg",
     #     "batchSize": 128,
     #     "percentage": 1,
@@ -51,22 +114,6 @@ class ExperimentEnums(Enum):
     #     "dlr": 0.0002,
     #     "loss": nn.BCELoss(),
     #     "epochs": 2
-    # }
-
-    # ECGSaliency = {
-    #     "explainable": True,
-    #     "explanationType": "saliency",
-    #     "generator": EcgGenerator,
-    #     "discriminator": EcgDiscriminator,
-    #     "dataset": "ecg",
-    #     "batchSize": 128,
-    #     "percentage": 1,
-    #     "g_optim": optim.Adam,
-    #     "d_optim": optim.Adam,
-    #     "glr": 0.0002,
-    #     "dlr": 0.0002,
-    #     "loss": nn.BCELoss(),
-    #     "epochs": 20
     # }
 
     # FMNIST35Normal = {
@@ -82,10 +129,10 @@ class ExperimentEnums(Enum):
     #     "glr": 0.0002,
     #     "dlr": 0.0002,
     #     "loss": nn.BCELoss(),
-    #     "epochs": 5
+    #     "epochs": 2
     # }
-
-    # MNIST100Saliency = {
+    #
+    # # MNIST100Saliency = {
     #     "explainable": True,
     #     "explanationType": "saliency",
     #     "generator": GeneratorNet,

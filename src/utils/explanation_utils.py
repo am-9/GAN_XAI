@@ -15,9 +15,11 @@ import numpy as np
 from copy import deepcopy
 import torch
 from torch.nn import functional as F
-from captum.attr import DeepLiftShap, Saliency
+from captum.attr import DeepLiftShap, Saliency, IntegratedGradients, DeepLift
 from utils.vector_utils import values_target, images_to_vectors
-# from lime import lime_image
+import pdb
+from utils.vector_utils import values_target
+#from lime import lime_image
 
 # defining global variables
 global values
@@ -51,9 +53,13 @@ def get_explanation(generated_data, discriminator, prediction, XAItype, cuda=Tru
     # mask values with low prediction
     mask = (prediction < 0.5).view(-1)
     indices = (mask.nonzero(as_tuple=False)).detach().cpu().numpy().flatten().tolist()
-    print ("LENGTH INDICES ", indices)
+    #print ("LENGTH INDICES ", indices)
 
     data = generated_data[mask, :]
+    # print ("trained data size ", trained_data["cardiac_cycle"].size())
+    # print ("data size ", data.unsqueeze(0).size())
+    # print ("indices size ", len(indices))
+    #exit(0)
 
     if len(indices) > 1:
 
@@ -62,12 +68,38 @@ def get_explanation(generated_data, discriminator, prediction, XAItype, cuda=Tru
                 explainer = Saliency(discriminator)
                 temp[indices[i], :] = explainer.attribute(data[i, :].detach().unsqueeze(0))
 
-            #print ("done getting saliency xAI ", len(temp), " ", len(temp[1,]))
+        elif XAItype == "ig":
+            for i in range(len(indices)):
+                explainer = IntegratedGradients(discriminator)
+                temp[indices[i], :] = explainer.attribute(data[i, :].detach().unsqueeze(0),  target=0)
+
+        elif XAItype == "deeplift":
+            print ("shap xAI")
+            for i in range(len(indices)):
+                explainer = DeepLift(discriminator)
+                #pdb.set_trace()
+                #print ("one training data ", trained_data['cardiac_cycle'][1, :])
+                print ("one training data size ", trained_data['cardiac_cycle'][1, :].size())
+                print ("data ", data[1, :].detach())
+                temp[indices[i], :] = explainer.attribute(data[i, :].detach().unsqueeze(0), baselines=torch.zeros(size=(1, 216)), target=0)
+                print ("first temp indices done")
+                exit(0)
+
 
         elif XAItype == "shap":
+            print ("shap xAI")
             for i in range(len(indices)):
-                explainer = DeepLiftShap(discriminator)
-                temp[indices[i], :] = explainer.attribute(data[i, :].detach().unsqueeze(0), trained_data, target=0)
+                explainer = DeepLiftShap(discriminator.double())
+                #pdb.set_trace()
+                #print ("one training data ", trained_data['cardiac_cycle'][1, :])
+                print ("one training data size ", trained_data['cardiac_cycle'][1, :].size())
+                print ("data ", data[1, :].detach())
+                #temp[indices[i], :] = explainer.attribute(data[i, :].detach().unsqueeze(0), trained_data['cardiac_cycle'], target=0)
+                attributions, delta = explainer.attribute(data[i, :].unsqueeze(0).detach(), baselines=torch.zeros(size=(216)), target=0)
+                #print('DeepLiftSHAP Attributions:', attributions)
+                print ("first temp indices done")
+                exit(0)
+
 
         elif XAItype == "lime":
             explainer = lime_image.LimeImageExplainer()
@@ -109,8 +141,8 @@ def explanation_hook(module, grad_input, grad_output):
     temp = temp.unsqueeze(1)
     temp = temp.unsqueeze(1)
 
-    #print ("TEMP SHAPE")
-    #print (temp.shape)
+    print ("TEMP SHAPE")
+    print (temp.shape)
 
     #print ("grad input shape ", grad_input[0].shape)
     #print ("grad output shape ", grad_output[0].shape)
@@ -118,10 +150,60 @@ def explanation_hook(module, grad_input, grad_output):
     # multiply with mask to generate values in range [1x, 1.2x] where x is the original calculated gradient
     new_grad = grad_input[0] + 0.2 * (grad_input[0] * temp)
 
-    #print ("DONE COMPUTING NEW GRAD")
-    #print ("new grad input shape ", new_grad.shape)
+    print ("DONE COMPUTING NEW GRAD")
+    print ("new grad input shape ", new_grad.shape)
 
-    return (new_grad, )
+def explanation_hook_lstm(module, grad_input, grad_output):
+    """
+    This function creates explanation hook which is run every time the backward function of the gradients is called
+    :param module: the name of the layer
+    :param grad_input: the gradients from the input layer
+    :param grad_output: the gradients from the output layer
+    :return:
+    """
+
+    #print ("AT EXPLANATION HOOK")
+    # get stored mask
+    temp = get_values()
+    #temp = temp.unsqueeze(1)
+    #temp = temp.unsqueeze(1)
+
+    print ("TEMP SHAPE")
+    print (temp.shape)
+
+    temp2 = torch.mean(temp, dim=0)
+    # print ("TEMP2 SHAPE")
+    # print (temp2.shape)
+
+    #grad_input[0] = grad_input[0].unsqueeze(0)
+
+    # grad input 0 shape torch.Size([216])
+    # grad input 1 shape torch.Size([128, 100])
+    # grad input 2 shape torch.Size([100, 216])
+
+    # print ("length of grad input ", len(grad_input))
+    # print ("grad input 0 shape ", grad_input[0].shape)
+    # print ("grad input 1 shape ", grad_input[1].shape)
+    # print ("grad input 2 shape ", grad_input[2].shape)
+    #
+    # print ("length of grad output ", len(grad_output))
+    # print ("grad ouput 0 shape ", grad_output[0].shape)
+
+
+    # multiply with mask to generate values in range [1x, 1.2x] where x is the original calculated gradient
+    new_grad_0 = grad_input[0] + 0.2 * (grad_input[0] * temp2)
+    tmp = torch.mm(grad_input[1], grad_input[2])
+    print ("size of tmp ", tmp.shape)
+    new_grad_1 = grad_input[1]
+    new_grad_2 = grad_input[2] + 0.2 * (grad_input[2] * temp2)
+
+    new_grad = (new_grad_0, new_grad_1, new_grad_2)
+
+    print ("DONE COMPUTING NEW GRAD")
+    print ("new_grad[0].shape ", new_grad[0].shape)
+    print ("new_grad[2].shape ", new_grad[2].shape)
+
+    return new_grad
 
 
 def explanation_hook_cifar(module, grad_input, grad_output):

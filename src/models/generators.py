@@ -14,40 +14,79 @@ Contact:
 from abc import ABC
 from torch import nn, Tensor
 import numpy as np
+import torch
+from ecg_dataset_pytorch import scale_signal
 
-class EcgGenerator(nn.Module, ABC):
+
+class EcgCNNGenerator(nn.Module, ABC):
     def __init__(self):
-        super(EcgGenerator, self).__init__()
+        super(EcgCNNGenerator, self).__init__()
         ngf = 64
-        self.main = nn.Sequential(
+
+        self.layer1 = nn.Sequential(
             # shape in = [N, 50, 1]
             nn.ConvTranspose1d(100, ngf * 32, 4, 1, 0, bias=False),
             nn.BatchNorm1d(ngf * 32),
-            nn.ReLU(True),
-            # shape in = [N, 64*4, 4]
+            nn.ReLU(True)
+        )
+
+        self.layer2 = nn.Sequential(
+
             nn.ConvTranspose1d(ngf * 32, ngf * 16, 4, 1, 0, bias=False),
             nn.BatchNorm1d(ngf * 16),
-            nn.ReLU(True),
+            nn.ReLU(True)
+        )
+
+        self.layer3 = nn.Sequential(
             # shape in = [N, 64*2, 7]
             nn.ConvTranspose1d(ngf * 16, ngf * 8, 4, 2, 1, bias=False),
             nn.BatchNorm1d(ngf * 8),
             nn.ReLU(True),
+        )
+
+        self.layer4 = nn.Sequential(
             nn.ConvTranspose1d(ngf * 8, ngf * 4, 3, 2, 1, bias=False),
             nn.BatchNorm1d(ngf * 4),
-            nn.ReLU(True),
+            nn.ReLU(True)
+        )
+
+        self.layer5 = nn.Sequential(
             nn.ConvTranspose1d(ngf * 4, ngf * 2, 4, 2, 1, bias=False),
             nn.BatchNorm1d(ngf * 2),
-            nn.ReLU(True),
+            nn.ReLU(True)
+        )
+
+        self.layer6 = nn.Sequential(
             nn.ConvTranspose1d(ngf * 2, ngf, 4, 2, 1, bias=False),
             nn.BatchNorm1d(ngf),
             nn.ReLU(True),
-            nn.ConvTranspose1d(ngf, 1, 4, 2, 1, bias=False),
+        )
+
+        self.out = nn.Sequential(
+            nn.ConvTranspose1d(ngf, 1, 4, 2, 1, bias=False)
         )
 
     def forward(self, x):
         x = x.view(-1, 100, 1)
-        x = self.main(x)
+        #print("x shape ", x.shape)
+        x = self.layer1(x)
+        #print("x shape layer 1", x.shape)
+        x = self.layer2(x)
+        #print("x shape layer 2", x.shape)
+        x = self.layer3(x)
+        #print("x shape layer 3", x.shape)
+        x = self.layer4(x)
+        #print("x shape layer 4", x.shape)
+        x = self.layer5(x)
+        #print("x shape layer 5", x.shape)
+        x = self.layer6(x)
+        #print("x shape layer 6", x.shape)
+        x = self.out(x)
+        #x = (torch.sigmoid(x)*2)-0.5
+        #print("x shape ", x.shape)
         x = x.view(-1, 216)
+        #print(x)
+        #exit(0)
         return x
 
 class ECGLSTMGenerator(nn.Module):
@@ -57,8 +96,8 @@ class ECGLSTMGenerator(nn.Module):
         self.hidden_dim = hidden_dim
         self.output_dim = output_dim
         self.num_layers = num_layers
-        self.layer1 = nn.LSTM(self.input_dim, self.hidden_dim, self.num_layers, bidirectional=True, dropout=0.5)
-        self.layer2 = nn.Linear(self.hidden_dim*2, self.output_dim)
+        self.layer1 = nn.LSTM(self.input_dim, self.hidden_dim, self.num_layers, bidirectional=False, dropout=0.5)
+        self.out = nn.Linear(self.hidden_dim, self.output_dim)
 
     def forward(self, x):
         # s, b, dim
@@ -68,7 +107,7 @@ class ECGLSTMGenerator(nn.Module):
         #print ("shape of x after layer 1 ", x.shape)
         s, b, h = x.size()
         x = x.view(s*b, h)
-        x = self.layer2(x)
+        x = self.out(x)
         #print ("shape of x after layer 2 ", x.shape)
         # s, b, outputsize
         #x = x.view(s, b, -1)

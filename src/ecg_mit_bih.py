@@ -9,9 +9,7 @@ DATA_DIR = '/Users/alainamahalanabis/Downloads/mit-bih-arrhythmia-database-1.0.0
 train_set = [101]  # DS1
 train_set = [str(x) for x in train_set]
 test_set = [100]  # DS2
-
 test_set = [str(x) for x in test_set]
-
 
 class ECGMitBihDataset(object):
     def __init__(self):

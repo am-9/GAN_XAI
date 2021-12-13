@@ -19,6 +19,8 @@ from tensorboardX import SummaryWriter
 from matplotlib import pyplot as plt
 import numpy as np
 import torchvision.utils as vutils
+import pandas
+import time
 
 
 class Logger:
@@ -126,26 +128,32 @@ class Logger:
 
         for ax in fig.get_axes():
             ax.label_outer()
+            ax.patch.set_edgecolor('black')
+            ax.patch.set_linewidth('1')
 
         plt.axis('off')
-        fig.savefig('{}/epoch_{}_batch_{}_test.png'.format(self.data_subdir, epoch, n_batch))
+        fig.savefig('{}/epoch_{}_batch_{}_{}.png'.format(self.data_subdir, epoch, n_batch, time.time()))
         #plt.show()
         plt.close()
 
-    def save_dtw_mmd(self, dtw, mmd, epoch, n_batch):
+        np.savetxt('{}/epoch_{}_batch_{}_heartbeat_time{}.csv'.format(self.data_subdir, epoch, n_batch, time.time()), images[0], delimiter=",")
+
+    def save_dtw_fd(self, dtw, fd, epoch, n_batch):
         fig, (ax1, ax2) = plt.subplots(2, 1)
         print ("DTW ", dtw)
-        print ("MMD ", mmd)
+        print ("FD ", fd)
 
         x_range = range(1, len(dtw)+1)
         ax1.scatter(x_range, dtw)
-        ax2.scatter(x_range, mmd)
+        ax2.scatter(x_range, fd)
         ax1.set_title("epoch vs dtw")
-        ax2.set_title("epoch vs mmd")
+        ax2.set_title("epoch vs fd")
         #ax1.xticks(fontsize=30)
         #ax1.yticks(fontsize=30)
-        fig.savefig('{}/epoch_{}_batch_{}_dtw_mmd.png'.format(self.data_subdir, epoch, n_batch))
+        fig.savefig('{}/epoch_{}_batch_{}_dtw_fd_time{}.png'.format(self.data_subdir, epoch, n_batch, time.time()))
         plt.close()
+        np.savetxt('{}/epoch_{}_batch_{}_dtw_time{}.csv'.format(self.data_subdir, epoch, n_batch, time.time()), dtw, delimiter=",")
+        np.savetxt('{}/epoch_{}_batch_{}_fd_time{}.csv'.format(self.data_subdir, epoch, n_batch, time.time()), fd, delimiter=",")
 
     @staticmethod
     def display_status(epoch, num_epochs, n_batch, num_batches, d_error, g_error, d_pred_real, d_pred_fake):
