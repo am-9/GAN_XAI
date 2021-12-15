@@ -126,6 +126,13 @@ def get_explanation(generated_data, discriminator, prediction, XAItype, cuda=Tru
     #print ("DONE SETTING VALUES")
     set_values(normalize_vector(temp))
 
+def get_explanation_IMV(alphas):
+
+    temp = alphas.view(alphas.shape[0], alphas.shape[1])
+    set_values(temp)
+    #print (temp.shape)
+    #print ("at xAI IMV ", temp.shape)
+
 def explanation_hook(module, grad_input, grad_output):
     """
     This function creates explanation hook which is run every time the backward function of the gradients is called
@@ -162,14 +169,14 @@ def explanation_hook_lstm(module, grad_input, grad_output):
     :return:
     """
 
-    #print ("AT EXPLANATION HOOK")
+    #print ("AT EXPLANATION HOOK LSTM")
     # get stored mask
     temp = get_values()
     #temp = temp.unsqueeze(1)
     #temp = temp.unsqueeze(1)
 
-    print ("TEMP SHAPE")
-    print (temp.shape)
+    #print ("TEMP SHAPE")
+    #print (temp.shape)
 
     temp2 = torch.mean(temp, dim=0)
     # print ("TEMP2 SHAPE")
@@ -193,15 +200,17 @@ def explanation_hook_lstm(module, grad_input, grad_output):
     # multiply with mask to generate values in range [1x, 1.2x] where x is the original calculated gradient
     new_grad_0 = grad_input[0] + 0.2 * (grad_input[0] * temp2)
     tmp = torch.mm(grad_input[1], grad_input[2])
-    print ("size of tmp ", tmp.shape)
+    #print ("size of tmp ", tmp.shape)
     new_grad_1 = grad_input[1]
     new_grad_2 = grad_input[2] + 0.2 * (grad_input[2] * temp2)
 
     new_grad = (new_grad_0, new_grad_1, new_grad_2)
 
-    print ("DONE COMPUTING NEW GRAD")
-    print ("new_grad[0].shape ", new_grad[0].shape)
-    print ("new_grad[2].shape ", new_grad[2].shape)
+    # print ("DONE COMPUTING NEW GRAD")
+    # print ("new_grad[0].shape ", new_grad[0].shape)
+    # print ("new_grad[2].shape ", new_grad[2].shape)
+
+    #print ("DONE COMPUTING NEW GRAD")
 
     return new_grad
 

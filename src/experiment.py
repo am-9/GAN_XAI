@@ -18,7 +18,8 @@ from evaluation.evaluate_generator import calculate_metrics
 from evaluation.evaluate_generator_cifar10 import calculate_metrics_cifar
 from evaluation.MMD import pairwisedistances, MMDStatistic
 from logger import Logger
-from utils.explanation_utils import explanation_hook, get_explanation, explanation_hook_cifar, explanation_hook_lstm
+from utils.explanation_utils import explanation_hook, get_explanation, \
+    explanation_hook_cifar, explanation_hook_lstm, get_explanation_IMV
 from torch.autograd import Variable
 from torch import nn
 import torch
@@ -67,8 +68,8 @@ class Experiment:
 
         start_time = time.time()
 
-        explanationSwitch = (self.epochs + 1) / 2 if self.epochs % 2 == 1 else self.epochs / 2
-        #explanationSwitch=0
+        #explanationSwitch = (self.epochs + 1) / 2 if self.epochs % 2 == 1 else self.epochs / 2
+        explanationSwitch=0
 
         logger = Logger(self.name, self.type["dataset"])
 
@@ -121,12 +122,12 @@ class Experiment:
 
                 sys.stdout.flush()
                 real_batch = data['cardiac_cycle'].float()
-                print ("batch number ", n_batch)
+                #print ("batch number ", n_batch)
                 labels = data['label']
                 labels_class = torch.max(labels, 1)[1]
 
                 N = real_batch.size(0)
-                print ("N", N)
+                #print ("N", N)
 
                 # 1. Train Discriminator
                 # Generate fake data and detach (so gradients are not calculated for generator)
@@ -141,7 +142,8 @@ class Experiment:
                     fake_data = fake_data.cuda()
 
                 # Train D
-                d_error, d_pred_real, d_pred_fake = self._train_discriminator(real_data=real_batch, fake_data=fake_data)
+                d_error, d_pred_real, d_pred_fake = self._train_discriminator(real_data=real_batch, fake_data=fake_data,
+                                                                              local_explainable=local_explainable)
 
                 # 2. Train Generator
                 # Generate fake data
@@ -237,9 +239,12 @@ class Experiment:
         self.g_optim.zero_grad()
 
         # Sample noise and generate fake data
-        prediction = self.discriminator(fake_data).view(-1)
+        if "IMV" in self.name:
+            prediction = self.discriminator(fake_data)[0].view(-1)
+        else:
+            prediction = self.discriminator(fake_data).view(-1)
 
-        if local_explainable:
+        if local_explainable and "LSTMIMV" not in self.name:
             #print("local explanation true")
             get_explanation(generated_data=fake_data, discriminator=self.discriminator, prediction=prediction,
                             XAItype=self.explanationType, cuda=self.cuda, trained_data=trained_data,
@@ -259,7 +264,7 @@ class Experiment:
         # Return error
         return error
 
-    def _train_discriminator(self, real_data: Variable, fake_data: torch.Tensor):
+    def _train_discriminator(self, real_data: Variable, fake_data: torch.Tensor, local_explainable):
         """
         This function performs one iteration of training the discriminator
         :param real_data: batch from dataset
@@ -276,20 +281,38 @@ class Experiment:
 
         # 1.1 Train on Real Data
         #print ("at discriminator training")
-        prediction_real = self.discriminator(real_data).view(-1)
+        if "IMV" in self.name:
+            #print ("at discrminator IMV")
+            prediction_real, alphas, betas = self.discriminator(real_data)
+            alphas = alphas.view(128, 216)
+            prediction_real = prediction_real.view(-1)
+            #print ("preidction real ", prediction_real.shape)
+            #print ("alphas size ", alphas.shape)
+            if local_explainable:
+                get_explanation_IMV(alphas)
+                #print("got alphas ", alphas.shape)
+        else:
+            prediction_real = self.discriminator(real_data).view(-1)
+            ##print (prediction_real)
 
         # Calculate error
         error_real = self.loss(prediction_real, values_target(size=(N,), value=self.real_label, cuda=self.cuda))
 
         # 1.2 Train on Fake Data
-        prediction_fake = self.discriminator(fake_data).view(-1)
+        if "IMV" in self.name:
+            prediction_fake, a, b = self.discriminator(fake_data)
+        else:
+            prediction_fake = self.discriminator(fake_data)
+        prediction_fake = prediction_fake.view(-1)
 
         # Calculate error
         error_fake = self.loss(prediction_fake, values_target(size=(N,), value=self.fake_label, cuda=self.cuda))
 
         # Sum up error and backpropagate
         error = error_real + error_fake
+
         error.backward()
+        #sprint ("D BACKWARD DONE ", error.shape)
 
         # 1.3 Update weights with gradients
         self.d_optim.step()

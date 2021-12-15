@@ -14,7 +14,7 @@ Contact:
 
 from enum import Enum
 from models.generators import GeneratorNet, GeneratorNetCifar10, EcgCNNGenerator, ECGLSTMGenerator
-from models.discriminators import DiscriminatorNet, DiscriminatorNetCifar10, EcgCNNDiscriminator, ECGLSTMDiscriminator, IMVFullLSTM
+from models.discriminators import DiscriminatorNet, DiscriminatorNetCifar10, EcgCNNDiscriminator, ECGLSTMDiscriminator, IMVTensorLSTM
 from torch import nn, optim
 from experiment import Experiment
 
@@ -53,10 +53,10 @@ class ExperimentEnums(Enum):
     # }
 
     # ECGLSTMIMV = {
-    #     "explainable": False,
+    #     "explainable": True,
     #     "explanationType": None,
     #     "generator": ECGLSTMGenerator,
-    #     "discriminator": IMVFullLSTM,
+    #     "discriminator": IMVTensorLSTM,
     #     "dataset": "ecg",
     #     "batchSize": 128,
     #     "percentage": 1,
@@ -64,8 +64,8 @@ class ExperimentEnums(Enum):
     #     "d_optim": optim.Adam,
     #     "glr": 0.0002,
     #     "dlr": 0.0002,
-    #     "loss": nn.BCELoss(),
-    #     "epochs": 50
+    #     "loss": nn.MSELoss(),
+    #     "epochs": 2
     # }
 
     # ECGCNNNormal = {
@@ -81,7 +81,39 @@ class ExperimentEnums(Enum):
     #     "glr": 0.0002,
     #     "dlr": 0.0002,
     #     "loss": nn.BCELoss(),
-    #     "epochs": 25
+    #     "epochs": 50
+    # }
+
+    ECGCNNNormalS = {
+        "explainable": False,
+        "explanationType": None,
+        "generator": EcgCNNGenerator,
+        "discriminator": EcgCNNDiscriminator,
+        "dataset": "ecg",
+        "batchSize": 128,
+        "percentage": 1,
+        "g_optim": optim.Adam,
+        "d_optim": optim.Adam,
+        "glr": 0.0002,
+        "dlr": 0.0002,
+        "loss": nn.BCELoss(),
+        "epochs": 50
+    }
+
+    # ECGCNNIg = {
+    #     "explainable": True,
+    #     "explanationType": "ig",
+    #     "generator": EcgCNNGenerator,
+    #     "discriminator": EcgCNNDiscriminator,
+    #     "dataset": "ecg",
+    #     "batchSize": 128,
+    #     "percentage": 1,
+    #     "g_optim": optim.Adam,
+    #     "d_optim": optim.Adam,
+    #     "glr": 0.0002,
+    #     "dlr": 0.0002,
+    #     "loss": nn.BCELoss(),
+    #     "epochs": 50
     # }
 
     # ECGCNNSaliency = {
