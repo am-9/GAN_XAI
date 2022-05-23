@@ -15,6 +15,7 @@ from abc import ABC
 from torch import nn, Tensor, jit, randn, exp, cat, stack
 import numpy as np
 import torch
+import torch.nn.init as init
 
 class IMVTensorLSTM(torch.jit.ScriptModule):
 
@@ -43,6 +44,9 @@ class IMVTensorLSTM(torch.jit.ScriptModule):
     @torch.jit.script_method
     def forward(self, test):
         x = torch.unsqueeze(test, dim=-1)
+        #print("legnth of shape ", len(x.shape))
+        if len(x.shape) == 2:
+            x = torch.unsqueeze(x, dim=-1)
         #print ("x shape ", x.shape)
 
         h_tilda_t = torch.zeros(x.shape[0], self.input_dim, self.n_units)
@@ -80,62 +84,127 @@ class IMVTensorLSTM(torch.jit.ScriptModule):
 
         return mean, alphas, betas
 
+class MinibatchDiscrimination(nn.Module):
+    def __init__(self, in_features, out_features, kernel_dims=16, mean=False):
+        super().__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.kernel_dims = kernel_dims
+        self.mean = mean
+        self.T = nn.Parameter(torch.Tensor(in_features, out_features, kernel_dims))
+        init.normal(self.T, 0, 1)
+
+    def forward(self, x):
+        # x is NxA
+        # T is AxBxC
+        matrices = x.mm(self.T.view(self.in_features, -1))
+        matrices = matrices.view(-1, self.out_features, self.kernel_dims)
+
+        M = matrices.unsqueeze(0)  # 1xNxBxC
+        M_T = M.permute(1, 0, 2, 3)  # Nx1xBxC
+        norm = torch.abs(M - M_T).sum(3)  # NxNxB
+        expnorm = torch.exp(-norm)
+        o_b = (expnorm.sum(0) - 1)   # NxB, subtract self distance
+        if self.mean:
+            o_b /= x.size(0) - 1
+
+        x = torch.cat([x, o_b], 1)
+        return x
 
 class EcgCNNDiscriminator(nn.Module):
     def __init__(self):
         super(EcgCNNDiscriminator, self).__init__()
         ndf = 64
-        self.out = nn.Sequential(
-        # input is (nc) x 64 x 64
-        nn.Conv1d(in_channels=1, out_channels=ndf, kernel_size=4, stride=2, padding=1, bias=False),
-        nn.LeakyReLU(0.2, inplace=True),
-        # state size. (ndf) x 32 x 32
-        nn.Conv1d(ndf, ndf * 2, 4, 2, 1, bias=False),
-        nn.BatchNorm1d(ndf * 2),
-        nn.LeakyReLU(0.2, inplace=True),
-        # state size. (ndf*2) x 16 x 16
-        nn.Conv1d(ndf * 2, ndf * 4, 4, 2, 1, bias=False),
-        nn.BatchNorm1d(ndf * 4),
-        nn.LeakyReLU(0.2, inplace=True),
-        # state size. (ndf*4) x 8 x 8
-        nn.Conv1d(ndf * 4, ndf * 8, 4, 2, 1, bias=False),
-        nn.BatchNorm1d(ndf * 8),
-        nn.LeakyReLU(0.2, inplace=True),
+        self.input = nn.Sequential(
+            # input is (nc) x 64 x 64
+            nn.Conv1d(in_channels=1, out_channels=ndf, kernel_size=4, stride=2, padding=1, bias=False),
+            nn.LeakyReLU(0.2, inplace=True)
+        )
 
-        nn.Conv1d(ndf * 8, ndf * 16, 4, 2, 1, bias=False),
-        nn.BatchNorm1d(ndf * 16),
-        nn.LeakyReLU(0.2, inplace=True),
+        self.layer1 = nn.Sequential(
+            # state size. (ndf) x 32 x 32
+            nn.Conv1d(ndf, ndf * 2, 4, 2, 1, bias=False),
+            nn.InstanceNorm1d(ndf * 2),
+            nn.LeakyReLU(0.2, inplace=True),
+        )
 
-        # state size. (ndf*8) x 4 x 4
-        nn.Conv1d(ndf * 16, 1, 5, 2, 0, bias=False),
-        nn.Sigmoid()
+        self.layer2 = nn.Sequential(
+            # state size. (ndf*2) x 16 x 16
+            nn.Conv1d(ndf * 2, ndf * 4, 4, 2, 1, bias=False),
+            nn.InstanceNorm1d(ndf * 4),
+            nn.LeakyReLU(0.2, inplace=True),
+        )
+
+        self.layer3 = nn.Sequential(
+            # state size. (ndf*4) x 8 x 8
+            nn.Conv1d(ndf * 4, ndf * 8, 4, 2, 1, bias=False),
+            nn.InstanceNorm1d(ndf * 8),
+            nn.LeakyReLU(0.2, inplace=True),
+        )
+
+        self.layer4 = nn.Sequential(
+            nn.Conv1d(ndf * 8, ndf * 16, 4, 2, 1, bias=False),
+            nn.InstanceNorm1d(ndf * 16),
+            nn.LeakyReLU(0.2, inplace=True),
+        )
+
+        #self.mb1 = MinibatchDiscrimination(16*6, 0, kernel_dims=16)
+
+        self.layer5 = nn.Sequential(
+            # state size. (ndf*8) x 4 x 4
+            nn.Conv1d(ndf * 16, 1, 5, 2, 0, bias=False),
         )
 
     def forward(self, x):
+        #print ("initial shape ", x.shape)
         x = x.view(-1, 1, 216)
-        return self.out(x)
+        # print ("at discriminator")
+        # print ("initial shape ", x.shape)
+        x = self.input(x)
+        #print ("input shape ", x.shape)
+        x = self.layer1(x)
+        #print ("layer1 shape ", x.shape)
+        x = self.layer2(x)
+        #print ("layer2 shape ", x.shape)
+        x = self.layer3(x)
+        #print ("layer3 shape ", x.shape)
+        x = self.layer4(x)
+        #print ("layer4 shape ", x.shape)
+        x = self.layer5(x)
+        # print ("layer5 shape ", x.shape)
+        # exit(0)
+        return x
 
 class ECGLSTMDiscriminator(nn.Module):
-    def __init__(self, input_dim=216, hidden_dim=100, output_dim=1, num_layers=2):
+    def __init__(self, input_dim=216, hidden_dim=512, output_dim=1, num_layers=2):
         super(ECGLSTMDiscriminator, self).__init__()
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
         self.output_dim = output_dim
         self.num_layers = num_layers
         self.layer1 = nn.LSTM(self.input_dim, self.hidden_dim, self.num_layers, bidirectional=False, dropout=0.5)
+        #self.mb1 = MinibatchDiscrimination(self.hidden_dim, self.hidden_dim)
         self.out = nn.Sequential(
             nn.Linear(self.hidden_dim, self.output_dim),
-            nn.Sigmoid()
         )
+
     def forward(self, x):
         # s, b, dim
-        #print ("at discriminator")
+        #print ("at discrißminator")
         x = x.unsqueeze(0)
         #print ("shape of x ", x.shape)
+        if len(x.shape) == 2:
+            x = x.unsqueeze(0)
+        #print ("shape of x ", x.shape)
+
         x, hn = self.layer1(x)
         s, b, h = x.size()
         x = x.view(s*b, h)
+        #print ("shape after layer 1 ", x.shape)
+        #x = self.mb1(x)
+        #print ("shape after mb 1 ", x.shape)
         x = self.out(x)
+        #exit(0)
         # s, b, outputsize
         #x = x.view(s, b, -1)
         return x
