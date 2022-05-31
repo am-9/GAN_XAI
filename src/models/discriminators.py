@@ -171,6 +171,7 @@ class EcgCNNDiscriminator(nn.Module):
         x = self.layer4(x)
         #print ("layer4 shape ", x.shape)
         x = self.layer5(x)
+        #x = torch.sigmoid(x)
         # print ("layer5 shape ", x.shape)
         # exit(0)
         return x
@@ -204,6 +205,7 @@ class ECGLSTMDiscriminator(nn.Module):
         #x = self.mb1(x)
         #print ("shape after mb 1 ", x.shape)
         x = self.out(x)
+        #x = torch.sigmoid(x)
         #exit(0)
         # s, b, outputsize
         #x = x.view(s, b, -1)

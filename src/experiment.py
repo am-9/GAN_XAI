@@ -11,7 +11,7 @@ Contact:
     explainable.gan@gmail.com
 """
 
-from get_data import get_loader
+from get_data import get_loader, out_distribution
 from utils.vector_utils import noise, values_target, vectors_to_images, vectors_to_images_cifar, noise_cifar, \
     weights_init
 from evaluation.evaluate_generator import calculate_metrics
@@ -51,20 +51,20 @@ class Experiment:
         self.explainable = self.type["explainable"]
         self.explanationType = self.type["explanationType"]
 
-        gen_model_dir = "/Users/alainamahalanabis/Documents/GAN_XAI/src/results/ecg/ECGCNN_Normal/generator.pt"
-        self.generator = EcgCNNGenerator()
-        self.generator.load_state_dict(torch.load(gen_model_dir), strict=False)
-        self.generator.eval()
+        # gen_model_dir = "/Users/alainamahalanabis/Documents/GAN_XAI/src/results/ecg/ECGLSTM_Normal/generator.pt"
+        # self.generator = ECGLSTMGenerator()
+        # self.generator.load_state_dict(torch.load(gen_model_dir), strict=False)
+        # self.generator.eval()
+        #
+        # disc_model_dir = "/Users/alainamahalanabis/Documents/GAN_XAI/src/results/ecg/ECGLSTM_Normal/discriminator.pt"
+        # self.discriminator = ECGLSTMDiscriminator()
+        # self.discriminator.load_state_dict(torch.load(disc_model_dir), strict=False)
+        # self.discriminator.eval()
 
-        disc_model_dir = "/Users/alainamahalanabis/Documents/GAN_XAI/src/results/ecg/ECGCNN_Normal/discriminator.pt"
-        self.discriminator = EcgCNNDiscriminator()
-        self.discriminator.load_state_dict(torch.load(disc_model_dir), strict=False)
-        self.discriminator.eval()
-
-        #self.generator = self.type["generator"]()
-        #self.discriminator = self.type["discriminator"]()
-        self.g_optim = self.type["g_optim"](self.generator.parameters(), betas=(0.0, 0.9))
-        self.d_optim = self.type["d_optim"](self.discriminator.parameters(), betas=(0.0, 0.9))
+        self.generator = self.type["generator"]()
+        self.discriminator = self.type["discriminator"]()
+        self.g_optim = self.type["g_optim"](self.generator.parameters(), lr=self.type["glr"])
+        self.d_optim = self.type["d_optim"](self.discriminator.parameters(), lr=self.type["dlr"], betas=(0, 0.9))
         #self.g_schedule = lr_scheduler.ExponentialLR(self.g_optim, gamma=0.9)
         #self.d_schedule = lr_scheduler.ExponentialLR(self.d_optim, gamma=0.9)
         #self.loss = self.type["loss"]
@@ -76,7 +76,7 @@ class Experiment:
         torch.backends.cudnn.benchmark = True
         self.discriminator_iterations = 5
         self.lambda_gp = 10
-        self.weight_clip = 0.01
+        self.weight_clip = 0
         self.alpha = self.type["alpha"]
 
 
@@ -95,7 +95,8 @@ class Experiment:
 
         #explanationSwitch = (self.epochs + 1) / 2 if self.epochs % 2 == 1 else self.epochs / 2
         #explanationSwitch=self.epochs - 5
-        explanationSwitch=0
+        explanationSwitch=190
+        turnOffSwitch=200
 
         logger = Logger(self.name, self.type["dataset"])
 
@@ -133,6 +134,9 @@ class Experiment:
         KL_DIV = []
 
         local_explainable = False
+        turn_off=False
+
+        #out_data = get_loader(dataset="out")
 
         # mean = 0.0
         #
@@ -165,14 +169,24 @@ class Experiment:
                         self.generator.out.register_backward_hook(explanation_hook)
                 local_explainable = True
 
+            if (epoch - 1) == turnOffSwitch:
+                turn_off = True
+
+
             for n_batch, data in enumerate(loader):
 
                 sys.stdout.flush()
                 real_batch = data['cardiac_cycle'].float()
+
+                # for i in range(0, len(real_batch)+1, 16):
+                #     print (i)
+                #     logger.log_images(real_batch[i:i+16,], self.epochs + 1, 0, num_batches)
+                # exit(0)
                 #print (real_batch[1])
                 #np.savetxt("./xAIoutput/F_beat_sinput.csv", real_batch[1], delimiter=',')
                 #exit(0)
                 print ("batch number ", n_batch)
+
                 labels = data['label']
                 #print(labels)
 
@@ -198,7 +212,9 @@ class Experiment:
                     print("train d")
                     fake_data = self.generator(noise(N, self.cuda)).detach()
                     d_error, d_pred_real, d_pred_fake = self._train_discriminator(real_data=real_batch, fake_data=fake_data,
-                                                                              local_explainable=local_explainable)
+                                                                               local_explainable=local_explainable)
+                    #xprint ("d error ", d_error, "d fake ", d_pred_real)
+
                 # 2. Train Generator
                 # Generate fake data
 
@@ -212,7 +228,7 @@ class Experiment:
 
                 # Train G
                 g_error = self._train_generator(fake_data=fake_data, local_explainable=local_explainable,
-                                                trained_data=trained_data)
+                                                trained_data=trained_data, turn_off=turn_off)
 
                 #sprint('done generator')
 
@@ -238,42 +254,41 @@ class Experiment:
                 kl_div = 0
                 pearson = 0
 
-                if n_batch == len(loader)-1:
-
-                    for i in range(N):
-                        for m in range(N):
-                            with torch.no_grad():
-                                #print("m ", m, "i ", i)
-                                real = real_batch[i, :].numpy()
-                                fake = fake_data[m, :].numpy()
-                                if "CNN" in self.name:
-                                    fake = np.interp(fake, (min(fake), max(fake)), (-0.4, 1.5))
-                                distance += fastdtw(real, fake, dist=euclidean, radius = 216)[0]
-                                rmse += np.sqrt((real-fake) ** 2).mean()
-                                w_dist += wasserstein_distance(real, fake)
-                                #print("wdist ", w_dist)
-                                #kl_div += np.sum(np.where(fake != 0, fake * np.log(fake / real), 0))
-                                pearson += pearsonr(real, fake)[0]
-                                #print("pearson ", pearson)
-                                #frechet += similaritymeasures.frechet_dist(real, fake)
-                        if i == 0:
-                            print ("real array ", real)
-                            print ("fake array ", fake)
-
-                    DTW.append(distance/(N**2))
-                    RMSE.append(rmse/(N**2))
-                    PEARSON.append(pearson/(N**2))
-                    WDIST.append(w_dist/(N**2))
-                    #KL_DIV.append(kl_div/(N**2))
-                    print ("dtw ", distance/(N**2))
-                    print ("rmse ", rmse/(N**2))
+                # if n_batch == len(loader)-1:
+                #
+                #     for i in range(N):
+                #         with torch.no_grad():
+                #             #print("m ", m, "i ", i)
+                #             real = real_batch[i, :].numpy()
+                #             fake = fake_data[i, :].numpy()
+                #             if "CNN" in self.name:
+                #                 fake = np.interp(fake, (min(fake), max(fake)), (-0.4, 1.5))
+                #             distance += fastdtw(real, fake, dist=euclidean, radius = 216)[0]
+                #             rmse += np.sqrt((real-fake) ** 2).mean()
+                #             w_dist += wasserstein_distance(real, fake)
+                #             #print("wdist ", w_dist)
+                #             #kl_div += np.sum(np.where(fake != 0, fake * np.log(fake / real), 0))
+                #             pearson += pearsonr(real, fake)[0]
+                #             #print("pearson ", pearson)
+                #             #frechet += similaritymeasures.frechet_dist(real, fake)
+                #     if i == 0:
+                #         print ("real array ", real)
+                #         print ("fake array ", fake)
+                #
+                #     DTW.append(distance/(N))
+                #     RMSE.append(rmse/(N))
+                #     PEARSON.append(pearson/(N))
+                #     WDIST.append(w_dist/(N))
+                #     #KL_DIV.append(kl_div/(N))
+                #     print ("dtw ", distance/(N))
+                #     print ("rmse ", rmse/(N))
             #mmd_list.append(mmd_eval.item())
             print("end of 1 epoch")
             #self.g_schedule.step()
             #self.d_schedule.step()
 
-        #logger.save_models(generator=self.generator)
-        #logger.save_discriminator(discriminator=self.discriminator)
+        logger.save_models(generator=self.generator)
+        logger.save_discriminator(discriminator=self.discriminator)
         logger.save_errors(g_loss=G_losses, d_loss=D_losses)
         logger.save_dtw_rmse(DTW, RMSE, epoch, num_batches)
         logger.save_pearson_wdist(PEARSON, WDIST, epoch, num_batches)
@@ -302,7 +317,7 @@ class Experiment:
         logger.save_scores(timeTaken, 0)
         return
 
-    def _train_generator(self, fake_data: torch.Tensor, local_explainable, trained_data=None) -> torch.Tensor:
+    def _train_generator(self, fake_data: torch.Tensor, local_explainable, turn_off, trained_data=None, ) -> torch.Tensor:
         """
         This function performs one iteration of training the generator
         :param fake_data: tensor data created by generator
@@ -323,16 +338,16 @@ class Experiment:
             print("local explanation true")
             get_explanation(generated_data=fake_data, discriminator=self.discriminator, prediction=prediction,
                             XAItype=self.explanationType, cuda=self.cuda, trained_data=trained_data,
-                            data_type=self.type["dataset"], alpha=self.alpha)
+                            data_type=self.type["dataset"], alpha=self.alpha, turn_off=turn_off)
 
         # Calculate error and back-propagate
         #error = self.loss(prediction, values_target(size=(N,), value=self.real_label, cuda=self.cuda))
-        print("prediction shape ", prediction.shape)
+        #print("prediction shape ", prediction.shape)
         error = -torch.mean(prediction)
         error.backward()
 
         # clip gradients to avoid exploding gradient problem
-        nn.utils.clip_grad_norm_(self.generator.parameters(), 10)
+        #nn.utils.clip_grad_norm_(self.generator.parameters(), 10)
 
         # update parameters
         self.g_optim.step()
@@ -355,17 +370,23 @@ class Experiment:
         # Reset gradients
         self.d_optim.zero_grad()
 
+        # out_dist = next(iter(out_data))
+        # out_dist = out_dist['cardiac_cycle'].float()
+        # prediction_out = self.discriminator(out_dist).view(-1)
+
         # 1.1 Train on Real Data
         #print ("at discriminator training")
         if "IMV" in self.name:
             #print ("at discrminator IMV")
             prediction_real, alphas, betas = self.discriminator(real_data)
             alphas = alphas.view(alphas.shape[0], alphas.shape[1])
+            #print ("alphas ", alphas )
+
             prediction_real = prediction_real.view(-1)
             #print ("preidction real ", prediction_real.shape)
             #print ("alphas size ", alphas.shape)
             if local_explainable and self.explanationType=="IMV":
-                get_explanation_IMV(alphas)
+                get_explanation_IMV(alphas, self.alpha)
                 #print("got alphas ", alphas.shape)
         else:
             prediction_real = self.discriminator(real_data).view(-1)
@@ -383,7 +404,6 @@ class Experiment:
 
         # Calculate error
         #error_fake = self.loss(prediction_fake, values_target(size=(N,), value=self.fake_label, cuda=self.cuda))
-
 
         #Calculate gradient penalty
         epsilon = torch.rand(N, 1, requires_grad = True).repeat(1, real_data.shape[1])
@@ -427,4 +447,5 @@ class Experiment:
         #Weight clipping for Wasserstein GAN
 
         # Return error and predictions for real and fake inputs
+        #return (error_real + error_fake) / 2, prediction_real, prediction_fake
         return error, prediction_real, prediction_fake

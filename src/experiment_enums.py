@@ -20,57 +20,75 @@ from experiment import Experiment
 
 class ExperimentEnums(Enum):
 
-    # ECGLSTMNormal = {
-    #     "explainable": False,
-    #     "explanationType": None,
+    # ECGLSTM_adversary_wgan_outdistribution = {
+    #     "explainable": True,
+    #     "explanationType": "adversary",
     #     "generator": ECGLSTMGenerator,
     #     "discriminator": ECGLSTMDiscriminator,
     #     "dataset": "ecg",
-    #     "batchSize": 128,
+    #     "batchSize": 64,
     #     "percentage": 1,
-    #     "g_optim": optim.Adam,
+    #     "g_optim": optim.SGD,
     #     "d_optim": optim.Adam,
-    #     "glr": 0.0002,
-    #     "dlr": 0.0002,
-    #     "loss": nn.BCELoss(),
-    #     "epochs": 50
-    # }
-    #
-    # ECGLSTMIg = {
-    #     "explainable": True,
-    #     "explanationType": "ig",
-    #     "generator": ECGLSTMGenerator,
-    #     "discriminator": ECGLSTMDiscriminator,
-    #     "dataset": "ecg",
-    #     "batchSize": 128,
-    #     "percentage": 1,
-    #     "g_optim": optim.Adam,
-    #     "d_optim": optim.Adam,
-    #     "glr": 0.0002,
-    #     "dlr": 0.0002,
-    #     "loss": nn.BCELoss(),
-    #     "epochs": 50
+    #     "loss": None,
+    #     "glr": 1e-3,
+    #     "dlr": 1e-3,
+    #     "epochs": 200,
+    #     "alpha": 2
     # }
 
-    # ECGLSTMIMV = {
+    ECGLSTM_Ig_alpha2_switchlast10= {
+        "explainable": True,
+        "explanationType": "ig",
+        "generator": ECGLSTMGenerator,
+        "discriminator": ECGLSTMDiscriminator,
+        "dataset": "ecg",
+        "batchSize": 64,
+        "percentage": 1,
+        "g_optim": optim.SGD,
+        "d_optim": optim.Adam,
+        "glr": 0.1,
+        "dlr": 1e-3,
+        "epochs": 200,
+        "alpha": 2
+    }
+
+    # ECGCNN_Saliency_alpha5_classifier = {
     #     "explainable": True,
-    #     "explanationType": None,
-    #     "generator": ECGLSTMGenerator,
-    #     "discriminator": IMVTensorLSTM,
+    #     "explanationType": "saliency",
+    #     "generator": EcgCNNGenerator,
+    #     "discriminator": EcgCNNDiscriminator,
     #     "dataset": "ecg",
-    #     "batchSize": 128,
+    #     "batchSize": 64,
     #     "percentage": 1,
-    #     "g_optim": optim.Adam,
+    #     "g_optim": optim.SGD,
     #     "d_optim": optim.Adam,
-    #     "glr": 0.0002,
-    #     "dlr": 0.0002,
-    #     "loss": nn.MSELoss(),
-    #     "epochs": 2
+    #     "glr": 0.1,
+    #     "dlr": 1e-3,
+    #     "epochs": 50,
+    #     "alpha": 5
     # }
 
-    # ECGCNNNormal = {
+    # ECGCNN_Normal_wgan = {
     #     "explainable": False,
     #     "explanationType": None,
+    #     "generator": EcgCNNGenerator,
+    #     "discriminator": EcgCNNDiscriminator,
+    #     "dataset": "ecg",
+    #     "batchSize": 64,
+    #     "percentage": 1,
+    #     "g_optim": optim.SGD,
+    #     "d_optim": optim.Adam,
+    #     "glr": 0.1,
+    #     "dlr": 1e-3,
+    #     "epochs": 50,
+    #     "alpha": None,
+    #     "loss": None
+    # }
+
+    # ECGCNNAdversary_switch0_alpha2 = {
+    #     "explainable": True,
+    #     "explanationType": "adversary",
     #     "generator": EcgCNNGenerator,
     #     "discriminator": EcgCNNDiscriminator,
     #     "dataset": "ecg",
@@ -84,21 +102,53 @@ class ExperimentEnums(Enum):
     #     "epochs": 50
     # }
 
-    ECGCNNNormalS = {
-        "explainable": False,
-        "explanationType": None,
-        "generator": EcgCNNGenerator,
-        "discriminator": EcgCNNDiscriminator,
-        "dataset": "ecg",
-        "batchSize": 128,
-        "percentage": 1,
-        "g_optim": optim.Adam,
-        "d_optim": optim.Adam,
-        "glr": 0.0002,
-        "dlr": 0.0002,
-        "loss": nn.BCELoss(),
-        "epochs": 50
-    }
+    # ECGCNNSaliencyS = {
+    #     "explainable": True,
+    #     "explanationType": "saliency",
+    #     "generator": EcgCNNGenerator,
+    #     "discriminator": EcgCNNDiscriminator,
+    #     "dataset": "ecg",
+    #     "batchSize": 128,
+    #     "percentage": 1,
+    #     "g_optim": optim.Adam,
+    #     "d_optim": optim.Adam,
+    #     "glr": 0.0002,
+    #     "dlr": 0.0002,
+    #     "loss": nn.BCELoss(),
+    #     "epochs": 50
+    # }
+
+    # ECGCNNSaliencyV = {
+    #     "explainable": True,
+    #     "explanationType": "saliency",
+    #     "generator": EcgCNNGenerator,
+    #     "discriminator": EcgCNNDiscriminator,
+    #     "dataset": "ecg",
+    #     "batchSize": 128,
+    #     "percentage": 1,
+    #     "g_optim": optim.Adam,
+    #     "d_optim": optim.Adam,
+    #     "glr": 0.0002,
+    #     "dlr": 0.0002,
+    #     "loss": nn.BCELoss(),
+    #     "epochs": 50
+    # }
+
+    # ECGCNNSaliencyF = {
+    #     "explainable": True,
+    #     "explanationType": "adversary",
+    #     "generator": EcgCNNGenerator,
+    #     "discriminator": EcgCNNDiscriminator,
+    #     "dataset": "ecg",
+    #     "batchSize": 128,
+    #     "percentage": 1,
+    #     "g_optim": optim.Adam,
+    #     "d_optim": optim.Adam,
+    #     "glr": 0.0002,
+    #     "dlr": 0.0002,
+    #     "loss": nn.BCELoss(),
+    #     "epochs": 50
+    # }
 
     # ECGCNNIg = {
     #     "explainable": True,
