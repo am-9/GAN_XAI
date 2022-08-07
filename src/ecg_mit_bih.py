@@ -11,6 +11,13 @@ train_set = [str(x) for x in train_set]
 test_set = [100]  # DS2
 test_set = [str(x) for x in test_set]
 
+train_set = [101, 106, 108, 109, 112, 114, 115, 116, 118, 119, 122, 124, 201, 203, 205, 207, 208, 209, 215, 220,
+             223, 230]  # DS1
+train_set = [str(x) for x in train_set]
+test_set = [100, 103, 105, 111, 113, 117, 121, 123, 200, 202, 210, 212, 213, 214, 219, 221, 222, 228, 231, 232,
+            233, 234]  # DS2
+test_set = [str(x) for x in test_set]
+
 class ECGMitBihDataset(object):
     def __init__(self):
         self.train_patients = [patient.Patient(p) for p in train_set]

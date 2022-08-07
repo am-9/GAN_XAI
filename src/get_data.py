@@ -59,15 +59,15 @@ def ecg_mit_bih():
     composed = transforms.Compose([ecg_dataset_pytorch.ToTensor()])
     train_configs = dataset_configs.DatasetConfigs('train', one_vs_all=True, lstm_setting=False,
                                         over_sample_minority_class=False,
-                                        under_sample_majority_class=False, only_take_heartbeat_of_type='N',
-                                        classified_heartbeat='N')
+                                        under_sample_majority_class=False, only_take_heartbeat_of_type='F',
+                                        classified_heartbeat='F')
 
 
 
     test_configs = dataset_configs.DatasetConfigs('test', one_vs_all=True, lstm_setting=False,
                                         over_sample_minority_class=False,
-                                        under_sample_majority_class=False, only_take_heartbeat_of_type='N',
-                                        classified_heartbeat='N')
+                                        under_sample_majority_class=False, only_take_heartbeat_of_type='F',
+                                        classified_heartbeat='F')
 
     train_data = ecg_dataset_pytorch.EcgHearBeatsDatasetPytorch(transform=composed, configs=train_configs)
     test_data = ecg_dataset_pytorch.EcgHearBeatsDatasetPytorch(transform=composed, configs=test_configs)

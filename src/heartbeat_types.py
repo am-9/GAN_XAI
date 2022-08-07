@@ -77,10 +77,10 @@ class AAMIHeartBeatTypes(Enum):
                                           Fusion of paced and normal beats (f)
 
     """
-    N = 0
-    S = 1
-    V = 2
-    F = 3
+    N = 3
+    S = 0
+    V = 1
+    F = 2
     Q = 4
 
     @classmethod
@@ -136,6 +136,7 @@ def convert_heartbeat_mit_bih_to_aami_index_class(heartbeat_mit_bih):
 
 
 def convert_to_one_hot(label_ind):
+    #print(label_ind)
     label_one_hot = [0 for _ in range(5)]
     label_one_hot[label_ind] = 1
     return label_one_hot

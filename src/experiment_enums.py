@@ -84,7 +84,7 @@ class ExperimentEnums(Enum):
     #     "epochs": 50
     # }
 
-    ECGCNNNormalS = {
+    ECGCNN_no_wgan = {
         "explainable": False,
         "explanationType": None,
         "generator": EcgCNNGenerator,
@@ -97,7 +97,7 @@ class ExperimentEnums(Enum):
         "glr": 0.0002,
         "dlr": 0.0002,
         "loss": nn.BCELoss(),
-        "epochs": 50
+        "epochs": 200
     }
 
     # ECGCNNIg = {
