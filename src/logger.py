@@ -105,7 +105,7 @@ class Logger:
 
     def save_ecg(self, images, epoch, n_batch):
 
-        print ("SAVING ECG IMAGE")
+        print ("SAVING ECG IMAGE at save ecg")
         fig, ((ax1, ax2, ax3, ax4), (ax5, ax6, ax7, ax8), (ax9, ax10, ax11, ax12),
               (ax13, ax14, ax15, ax16)) = plt.subplots(4, 4)
 
@@ -130,8 +130,9 @@ class Logger:
             ax.label_outer()
             ax.patch.set_edgecolor('black')
             ax.patch.set_linewidth('1')
+            ax.axis('on')
 
-        plt.axis('off')
+        #plt.axis('off')
         fig.savefig('{}/epoch_{}_batch_{}_{}.png'.format(self.data_subdir, epoch, n_batch, time.time()))
         #plt.show()
         plt.close()
@@ -177,6 +178,9 @@ class Logger:
     def save_models(self, generator):
         torch.save(generator.state_dict(), f'{self.data_subdir}/generator.pt')
 
+    def save_discriminator(self, discriminator):
+        torch.save(discriminator.state_dict(), f'{self.data_subdir}/discriminator.pt')
+
     def close(self):
         self.writer.close()
 
@@ -193,7 +197,7 @@ class Logger:
             if e.errno != errno.EEXIST:
                 raise
 
-    def save_scores(self, time, fid):
-        with open(f'{self.data_subdir}/results.txt', 'w') as file:
-            file.write(f'time taken: {round(time, 4)}\n')
-            file.write(f'fid score: {round(fid, 4)}')
+    def save_time(self, time):
+        print(time)
+        with open(f'{self.data_subdir}/time_{time}.txt', 'w') as file:
+            file.write(str(time))
